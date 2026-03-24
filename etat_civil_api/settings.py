@@ -67,8 +67,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': config('DB_NAME', default='etat_civil_db'),
-        'USER': config('DB_USER', default='etat_civil_user'),
-        'PASSWORD': config('DB_PASSWORD', default='etat_civil_pass_2026'),
+        'USER': config('DB_USER', default='postegres'),
+        'PASSWORD': config('DB_PASSWORD', default='admin'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {'connect_timeout': 10},
@@ -95,7 +95,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-DEFAULT_AUTO_FIELD = 'django.db.models.UUIDField'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ─── Django REST Framework ────────────────────────────────────────────────────
 REST_FRAMEWORK = {
