@@ -5,7 +5,7 @@ from .models import Agent
 
 class AgentSerializer(serializers.ModelSerializer):
     nom_complet  = serializers.ReadOnlyField()
-    centre_nom   = serializers.CharField(source='centre.nom', read_only=True)
+    centre_nom   = serializers.CharField(source='centre.nom', read_only=True, default=None, allow_null=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
 
     class Meta:
