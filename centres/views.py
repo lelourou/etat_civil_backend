@@ -1,5 +1,7 @@
 from rest_framework import viewsets, filters, decorators, response, status
+from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db import models
 from django.utils import timezone
 from .models import Centre, RattachementVillage
 from .serializers import CentreSerializer, RattachementVillageSerializer
@@ -12,6 +14,29 @@ class CentreViewSet(viewsets.ModelViewSet):
     filterset_fields = ['type', 'actif', 'localite']
     search_fields    = ['nom', 'code']
     ordering_fields  = ['nom', 'date_creation']
+
+    def perform_create(self, serializer):
+        """
+        R2 — Règle de gestion : une sous-préfecture ACTIVE doit exister
+        dans la même localité avant de pouvoir créer une mairie.
+        """
+        localite    = serializer.validated_data.get('localite')
+        type_centre = serializer.validated_data.get('type')
+
+        if type_centre == Centre.MAIRIE:
+            sous_pref_existe = Centre.objects.filter(
+                localite=localite,
+                type=Centre.SOUS_PREFECTURE,
+                actif=True,
+            ).exists()
+            if not sous_pref_existe:
+                raise ValidationError({
+                    'type': (
+                        "R2 — Une sous-préfecture active doit exister dans cette localité "
+                        "avant de créer une mairie."
+                    )
+                })
+        serializer.save()
 
     @decorators.action(detail=True, methods=['get'])
     def villages_courants(self, request, pk=None):
@@ -41,7 +66,3 @@ class RattachementVillageViewSet(viewsets.ModelViewSet):
     serializer_class = RattachementVillageSerializer
     filter_backends  = [DjangoFilterBackend]
     filterset_fields = ['village', 'centre']
-
-
-# Fix missing import
-from django.db import models

@@ -15,8 +15,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'SUPERVISEUR_NATIONAL':
+        # R4 : SUPERVISEUR_NATIONAL et ADMIN_SYSTEME voient toutes les notifications
+        if user.role in ['SUPERVISEUR_NATIONAL', 'ADMIN_SYSTEME']:
             return super().get_queryset()
+        # R5 : les autres voient uniquement les notifications destinées à leur centre
         if user.centre:
             return super().get_queryset().filter(centre_destinataire=user.centre)
         return super().get_queryset().none()
