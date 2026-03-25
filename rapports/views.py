@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Sum, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, date
 
 
 ROLES_BI = ['SUPERVISEUR_CENTRE', 'SUPERVISEUR_NATIONAL', 'ADMIN_SYSTEME']
@@ -106,7 +106,7 @@ class SyntheseView(RapportsMixin, APIView):
 # ── 2. Évolution mensuelle (12 derniers mois) ─────────────────────────────────
 
 class EvolutionMensuelleView(RapportsMixin, APIView):
-    """Nombre d'actes par mois et par nature sur les 12 derniers mois."""
+    """Nombre d'actes par mois et par nature sur les 5 dernières années (date_evenement)."""
 
     def get(self, request):
         from actes.models import Acte
@@ -115,11 +115,11 @@ class EvolutionMensuelleView(RapportsMixin, APIView):
             return Response({'detail': 'Accès non autorisé.'}, status=403)
 
         fa = self.get_filtre_actes(request.user)
-        depuis = timezone.now() - timedelta(days=365)
+        depuis = date(timezone.now().year - 5, 1, 1)
 
         donnees = (
-            Acte.objects.filter(date_enregistrement__gte=depuis, **fa)
-            .annotate(mois=TruncMonth('date_enregistrement'))
+            Acte.objects.filter(date_evenement__gte=depuis, **fa)
+            .annotate(mois=TruncMonth('date_evenement'))
             .values('mois', 'nature')
             .annotate(count=Count('id'))
             .order_by('mois', 'nature')
@@ -250,4 +250,51 @@ class PaiementsParCanalView(RapportsMixin, APIView):
                 }
                 for d in par_moyen
             ],
+        })
+
+
+# ── 7. Répartition par genre (sexe) ───────────────────────────────────────────
+
+class ActesParGenreView(RapportsMixin, APIView):
+    """Répartition des individus par sexe et des actes de naissance par sexe."""
+
+    def get(self, request):
+        from individus.models import Individu
+        from actes.models import Acte
+
+        if self.interdit(request.user):
+            return Response({'detail': 'Accès non autorisé.'}, status=403)
+
+        fi = self.get_filtre_individus(request.user)
+        fa = self.get_filtre_actes(request.user)
+
+        par_sexe = (
+            Individu.objects.filter(**fi)
+            .values('sexe')
+            .annotate(count=Count('id'))
+            .order_by('sexe')
+        )
+
+        naissances_par_sexe = (
+            Acte.objects.filter(nature='NAISSANCE', **fa)
+            .select_related('individu')
+            .values('individu__sexe')
+            .annotate(count=Count('id'))
+            .order_by('individu__sexe')
+        )
+
+        deces_par_sexe = (
+            Individu.objects.filter(est_decede=True, **fi)
+            .values('sexe')
+            .annotate(count=Count('id'))
+            .order_by('sexe')
+        )
+
+        return Response({
+            'individus_par_sexe':   list(par_sexe),
+            'naissances_par_sexe':  [
+                {'sexe': d['individu__sexe'], 'count': d['count']}
+                for d in naissances_par_sexe
+            ],
+            'deces_par_sexe':       list(deces_par_sexe),
         })

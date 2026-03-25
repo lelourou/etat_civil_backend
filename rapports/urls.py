@@ -6,6 +6,7 @@ from .views import (
     ActesParCentreView,
     RecettesParCentreView,
     PaiementsParCanalView,
+    ActesParGenreView,
 )
 
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
     path('par-centre/',         ActesParCentreView.as_view(),      name='rapport-centre'),
     path('recettes/',           RecettesParCentreView.as_view(),   name='rapport-recettes'),
     path('paiements-canal/',    PaiementsParCanalView.as_view(),   name='rapport-canal'),
+    path('par-genre/',          ActesParGenreView.as_view(),       name='rapport-genre'),
 ]
