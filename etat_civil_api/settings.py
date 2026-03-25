@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'actes',
     'paiements',
     'notifications',
+    'rapports',
     'core',
 ]
 
