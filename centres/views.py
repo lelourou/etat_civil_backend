@@ -1,6 +1,7 @@
 from rest_framework import viewsets, filters, decorators, response, status
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
 from django.utils import timezone
@@ -77,7 +78,30 @@ class CentreViewSet(viewsets.ModelViewSet):
 
 
 class RattachementVillageViewSet(viewsets.ModelViewSet):
-    queryset         = RattachementVillage.objects.select_related('village', 'centre').all()
-    serializer_class = RattachementVillageSerializer
-    filter_backends  = [DjangoFilterBackend]
-    filterset_fields = ['village', 'centre']
+    queryset           = RattachementVillage.objects.select_related('village', 'centre').all()
+    serializer_class   = RattachementVillageSerializer
+    filter_backends    = [DjangoFilterBackend]
+    filterset_fields   = ['village', 'centre']
+    permission_classes = [EstAdminCentral]
+
+
+class StatsDashboardView(APIView):
+    """
+    Statistiques globales pour le tableau de bord ADMIN_CENTRAL.
+    GET /api/v1/centres/stats/
+    """
+    permission_classes = [EstAdminCentral]
+
+    def get(self, request):
+        from authentification.models import Agent
+        from actes.models import Acte
+
+        return response.Response({
+            'nb_centres':       Centre.objects.count(),
+            'nb_centres_actifs': Centre.objects.filter(actif=True).count(),
+            'nb_agents':        Agent.objects.filter(is_active=True, role='AGENT_CENTRE').count(),
+            'nb_actes_naissance': Acte.objects.filter(nature='NAISSANCE').count(),
+            'nb_actes_mariage':   Acte.objects.filter(nature='MARIAGE').count(),
+            'nb_actes_deces':     Acte.objects.filter(nature='DECES').count(),
+            'nb_actes_total':     Acte.objects.count(),
+        })
