@@ -7,41 +7,38 @@ from django.utils import timezone
 from datetime import timedelta, date
 
 
-ROLES_BI = ['SUPERVISEUR_CENTRE', 'SUPERVISEUR_NATIONAL', 'ADMIN_SYSTEME']
-
-
 class RapportsMixin:
     """
     Retourne le filtre ORM adapté au rôle de l'utilisateur.
-    - SUPERVISEUR_NATIONAL / ADMIN_SYSTEME : données nationales
-    - SUPERVISEUR_CENTRE : données de son seul centre
-    - Autres : accès refusé (None)
+    - ADMIN_CENTRAL : toutes les données (filtre vide)
+    - AGENT_CENTRE  : données de son seul centre
+    - Autres : accès refusé
     """
     permission_classes = [IsAuthenticated]
 
     def get_filtre_actes(self, user):
-        if user.role in ['SUPERVISEUR_NATIONAL', 'ADMIN_SYSTEME']:
+        if user.role == 'ADMIN_CENTRAL':
             return {}
-        if user.role == 'SUPERVISEUR_CENTRE' and user.centre:
+        if user.role == 'AGENT_CENTRE' and user.centre:
             return {'centre': user.centre}
         return None
 
     def get_filtre_individus(self, user):
-        if user.role in ['SUPERVISEUR_NATIONAL', 'ADMIN_SYSTEME']:
+        if user.role == 'ADMIN_CENTRAL':
             return {}
-        if user.role == 'SUPERVISEUR_CENTRE' and user.centre:
+        if user.role == 'AGENT_CENTRE' and user.centre:
             return {'centre_naissance': user.centre}
         return None
 
     def get_filtre_paiements(self, user):
-        if user.role in ['SUPERVISEUR_NATIONAL', 'ADMIN_SYSTEME']:
+        if user.role == 'ADMIN_CENTRAL':
             return {}
-        if user.role == 'SUPERVISEUR_CENTRE' and user.centre:
+        if user.role == 'AGENT_CENTRE' and user.centre:
             return {'demande__centre': user.centre}
         return None
 
     def interdit(self, user):
-        return user.role not in ROLES_BI
+        return user.role not in ['ADMIN_CENTRAL', 'AGENT_CENTRE']
 
 
 # ── 1. Synthèse (KPIs) ────────────────────────────────────────────────────────
@@ -78,9 +75,9 @@ class SyntheseView(RapportsMixin, APIView):
         )
         nb_paiements = Paiement.objects.filter(statut='CONFIRME', **fp).count()
 
-        # Notifications : filtre sur centre_emetteur pour SUPERVISEUR_CENTRE
+        # Notifications : filtre sur centre_emetteur pour AGENT_CENTRE
         fn = {}
-        if request.user.role == 'SUPERVISEUR_CENTRE' and request.user.centre:
+        if request.user.role == 'AGENT_CENTRE' and request.user.centre:
             fn = {'centre_emetteur': request.user.centre}
         total_notifications = NotificationInterCentre.objects.filter(**fn).count()
         notifs_attente = NotificationInterCentre.objects.filter(
@@ -222,7 +219,7 @@ class PaiementsParCanalView(RapportsMixin, APIView):
             return Response({'detail': 'Accès non autorisé.'}, status=403)
 
         fd = {}
-        if request.user.role == 'SUPERVISEUR_CENTRE' and request.user.centre:
+        if request.user.role == 'AGENT_CENTRE' and request.user.centre:
             fd = {'centre': request.user.centre}
 
         par_canal = (
