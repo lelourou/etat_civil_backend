@@ -1,17 +1,26 @@
 from rest_framework import viewsets, filters, decorators, response, status
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Individu, Filiation
 from .serializers import IndividuSerializer, IndividuCreateSerializer, FiliationSerializer
 
 
 class IndividuViewSet(viewsets.ModelViewSet):
-    queryset = Individu.objects.select_related(
-        'centre_naissance', 'lieu_naissance_village'
-    ).prefetch_related('filiations').all()
-    filter_backends  = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['sexe', 'nationalite', 'est_decede', 'centre_naissance']
-    search_fields    = ['nom', 'prenoms', 'nin']
-    ordering_fields  = ['nom', 'prenoms', 'date_naissance']
+    filter_backends    = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields   = ['sexe', 'nationalite', 'est_decede', 'centre_naissance']
+    search_fields      = ['nom', 'prenoms', 'nin']
+    ordering_fields    = ['nom', 'prenoms', 'date_naissance']
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """R2 — Un AGENT_CENTRE ne voit que les individus de son centre."""
+        user = self.request.user
+        qs = Individu.objects.select_related(
+            'centre_naissance', 'lieu_naissance_village'
+        ).prefetch_related('filiations').all()
+        if user.role == 'AGENT_CENTRE' and user.centre:
+            return qs.filter(centre_naissance=user.centre)
+        return qs.none()
 
     def get_serializer_class(self):
         if self.action == 'create':

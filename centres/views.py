@@ -1,10 +1,20 @@
 from rest_framework import viewsets, filters, decorators, response, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import models
 from django.utils import timezone
 from .models import Centre, RattachementVillage
 from .serializers import CentreSerializer, RattachementVillageSerializer
+
+
+class EstAdminCentral(IsAuthenticated):
+    """Seul un ADMIN_CENTRAL peut créer/modifier/supprimer des centres."""
+    def has_permission(self, request, view):
+        return (
+            super().has_permission(request, view)
+            and request.user.role == 'ADMIN_CENTRAL'
+        )
 
 
 class CentreViewSet(viewsets.ModelViewSet):
@@ -14,6 +24,11 @@ class CentreViewSet(viewsets.ModelViewSet):
     filterset_fields = ['type', 'actif', 'localite']
     search_fields    = ['nom', 'code']
     ordering_fields  = ['nom', 'date_creation']
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [EstAdminCentral()]
+        return [IsAuthenticated()]
 
     def perform_create(self, serializer):
         """

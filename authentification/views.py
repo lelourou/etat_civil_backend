@@ -7,16 +7,25 @@ from .models import Agent
 from .serializers import AgentSerializer, AgentCreateSerializer, CustomTokenObtainSerializer
 
 
+class EstAdminCentral(permissions.BasePermission):
+    """Seul un ADMIN_CENTRAL peut gérer les utilisateurs."""
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.role == 'ADMIN_CENTRAL'
+        )
+
+
 class LoginView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainSerializer
+    serializer_class   = CustomTokenObtainSerializer
     permission_classes = [permissions.AllowAny]
 
 
 class LogoutView(APIView):
     def post(self, request):
         try:
-            refresh_token = request.data["refresh"]
-            token = RefreshToken(refresh_token)
+            token = RefreshToken(request.data["refresh"])
             token.blacklist()
             return Response({"detail": "Déconnexion réussie."}, status=status.HTTP_200_OK)
         except Exception:
@@ -31,18 +40,19 @@ class MeView(generics.RetrieveUpdateAPIView):
 
 
 class AgentListCreateView(generics.ListCreateAPIView):
-    queryset = Agent.objects.select_related('centre').all()
+    """
+    GET  — liste de tous les agents (ADMIN_CENTRAL uniquement)
+    POST — créer un agent (ADMIN_CENTRAL uniquement)
+    """
+    queryset           = Agent.objects.select_related('centre').all()
+    permission_classes = [EstAdminCentral]
 
     def get_serializer_class(self):
         return AgentCreateSerializer if self.request.method == 'POST' else AgentSerializer
 
-    def get_permissions(self):
-        if self.request.method == 'POST':
-            return [permissions.IsAdminUser()]
-        return [permissions.IsAuthenticated()]
-
 
 class AgentDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset         = Agent.objects.select_related('centre').all()
-    serializer_class = AgentSerializer
-    permission_classes = [permissions.IsAdminUser]
+    """Consultation / modification / désactivation d'un agent (ADMIN_CENTRAL)."""
+    queryset           = Agent.objects.select_related('centre').all()
+    serializer_class   = AgentSerializer
+    permission_classes = [EstAdminCentral]

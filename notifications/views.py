@@ -14,14 +14,12 @@ class NotificationViewSet(viewsets.ModelViewSet):
     ordering_fields  = ['created_at']
 
     def get_queryset(self):
+        """R5 — Un AGENT_CENTRE voit uniquement les notifications destinées à son centre."""
         user = self.request.user
-        # R4 : SUPERVISEUR_NATIONAL et ADMIN_SYSTEME voient toutes les notifications
-        if user.role in ['SUPERVISEUR_NATIONAL', 'ADMIN_SYSTEME']:
-            return super().get_queryset()
-        # R5 : les autres voient uniquement les notifications destinées à leur centre
-        if user.centre:
-            return super().get_queryset().filter(centre_destinataire=user.centre)
-        return super().get_queryset().none()
+        qs = super().get_queryset()
+        if user.role == 'AGENT_CENTRE' and user.centre:
+            return qs.filter(centre_destinataire=user.centre)
+        return qs.none()
 
     @decorators.action(detail=True, methods=['post'])
     def acquitter(self, request, pk=None):

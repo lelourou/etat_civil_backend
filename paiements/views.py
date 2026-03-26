@@ -6,11 +6,18 @@ from .serializers import DemandeCopieSerializer, PaiementSerializer
 
 
 class DemandeCopieViewSet(viewsets.ModelViewSet):
-    queryset = DemandeCopie.objects.select_related('acte', 'centre').prefetch_related('paiement').all()
     serializer_class = DemandeCopieSerializer
     filter_backends  = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['statut', 'canal', 'centre', 'type_copie']
+    filterset_fields = ['statut', 'canal', 'type_copie']
     search_fields    = ['reference', 'demandeur_nom', 'acte__numero_national']
+
+    def get_queryset(self):
+        """R2 — Un AGENT_CENTRE ne voit que les demandes de son centre."""
+        user = self.request.user
+        qs = DemandeCopie.objects.select_related('acte', 'centre').prefetch_related('paiement').all()
+        if user.role == 'AGENT_CENTRE' and user.centre:
+            return qs.filter(centre=user.centre)
+        return qs.none()
 
     @decorators.action(detail=True, methods=['post'])
     def confirmer_paiement(self, request, pk=None):

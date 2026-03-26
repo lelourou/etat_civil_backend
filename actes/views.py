@@ -1,41 +1,31 @@
 from rest_framework import viewsets, filters, decorators, response, status
-from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Acte, MentionMarginale
 from .serializers import (ActeSerializer, ActeCreateSerializer,
                            MentionMarginaleSerializer)
-from .permissions import PeutGererActeDeCentre
+from .permissions import EstAgentCentre, PeutGererActeDeCentre
 
 
 class ActeViewSet(viewsets.ModelViewSet):
     filter_backends  = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['nature', 'statut', 'centre', 'individu']
+    filterset_fields = ['nature', 'statut', 'individu']
     search_fields    = ['numero_national', 'individu__nom', 'individu__prenoms',
                         'individu__nin']
     ordering_fields  = ['date_evenement', 'date_enregistrement', 'numero_national']
 
     def get_queryset(self):
         """
-        R3/R4 — Filtrage par circonscription :
-        - AGENT_GUICHET, SUPERVISEUR_CENTRE : liste limitée à leur centre.
-          La consultation d'un acte individuel (retrieve) reste possible
-          pour tous les centres authentifiés (lecture seule inter-centres).
-        - SUPERVISEUR_NATIONAL, ADMIN_SYSTEME : accès à tout le système.
+        R2 — Un AGENT_CENTRE ne voit et ne gère que les actes de son centre.
+        L'ADMIN_CENTRAL n'a pas accès aux actes.
         """
         user = self.request.user
         qs = Acte.objects.select_related(
             'individu', 'centre', 'agent', 'superviseur', 'village'
         ).prefetch_related('mentions').all()
 
-        if user.role in ['SUPERVISEUR_NATIONAL', 'ADMIN_SYSTEME']:
-            return qs
-
-        # Pour la liste, restreindre au centre de l'agent (R3)
-        if self.action == 'list' and user.centre:
+        if user.centre:
             return qs.filter(centre=user.centre)
-
-        # Pour retrieve/detail, accès en lecture seule inter-centres (R4)
-        return qs
+        return qs.none()
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -45,46 +35,31 @@ class ActeViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
             return [PeutGererActeDeCentre()]
-        return [IsAuthenticated()]
+        return [EstAgentCentre()]
 
     def perform_create(self, serializer):
         """
-        R3 — L'acte est enregistré dans le centre de l'agent connecté.
-             Les rôles SUPERVISEUR_NATIONAL et ADMIN_SYSTEME peuvent
-             spécifier un autre centre via le champ 'centre' du payload.
-        R5 — Après création d'un acte MARIAGE ou DECES, une notification
-             inter-centres est automatiquement envoyée au centre qui a
-             enregistré l'acte de naissance de l'individu.
+        R2 — L'acte est enregistré dans le centre de l'agent connecté.
+        R5 — Notification inter-centres déclenchée pour MARIAGE et DECES.
         """
-        user = self.request.user
+        acte = serializer.save(agent=self.request.user, centre=self.request.user.centre)
 
-        # R3 : forcer le centre pour les agents de terrain
-        if user.role in ['AGENT_GUICHET', 'SUPERVISEUR_CENTRE']:
-            acte = serializer.save(agent=user, centre=user.centre)
-        else:
-            acte = serializer.save(agent=user)
-
-        # R5 : notification automatique mariage / décès inter-centres
         if acte.nature in [Acte.MARIAGE, Acte.DECES]:
             self._notifier_centre_naissance(acte)
-
-    # ── Helpers ──────────────────────────────────────────────────────────────
 
     def _notifier_centre_naissance(self, acte):
         """
         R5 — Envoie une NotificationInterCentre au centre d'origine
-        (celui qui a enregistré l'acte de naissance) lorsqu'un mariage
-        ou un décès survient dans un autre centre.
+        lorsqu'un mariage ou un décès survient dans un autre centre.
         """
         from notifications.models import NotificationInterCentre
 
-        individu       = acte.individu
+        individu = acte.individu
         acte_naissance = Acte.objects.filter(
             individu=individu,
             nature=Acte.NAISSANCE,
         ).select_related('centre').first()
 
-        # Pas de notification si même centre ou si naissance inconnue
         if not acte_naissance or acte_naissance.centre == acte.centre:
             return
 
@@ -105,8 +80,6 @@ class ActeViewSet(viewsets.ModelViewSet):
                 'centre_naissance': acte_naissance.centre.code,
             },
         )
-
-    # ── Actions supplémentaires ───────────────────────────────────────────────
 
     @decorators.action(detail=True, methods=['post'])
     def valider(self, request, pk=None):
@@ -134,7 +107,5 @@ class ActeViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=['get'])
     def mentions(self, request, pk=None):
-        acte      = self.get_object()
-        mentions  = acte.mentions.all()
-        serializer = MentionMarginaleSerializer(mentions, many=True)
-        return response.Response(serializer.data)
+        mentions = self.get_object().mentions.all()
+        return response.Response(MentionMarginaleSerializer(mentions, many=True).data)

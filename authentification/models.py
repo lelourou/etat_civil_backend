@@ -16,21 +16,17 @@ class AgentManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('role', Agent.ADMIN_SYSTEME)
+        extra_fields.setdefault('role', Agent.ADMIN_CENTRAL)
         return self.create_user(email, password, **extra_fields)
 
 
 class Agent(AbstractBaseUser, PermissionsMixin):
-    AGENT_GUICHET        = 'AGENT_GUICHET'
-    SUPERVISEUR_CENTRE   = 'SUPERVISEUR_CENTRE'
-    SUPERVISEUR_NATIONAL = 'SUPERVISEUR_NATIONAL'
-    ADMIN_SYSTEME        = 'ADMIN_SYSTEME'
+    ADMIN_CENTRAL = 'ADMIN_CENTRAL'
+    AGENT_CENTRE  = 'AGENT_CENTRE'
 
     ROLE_CHOICES = [
-        (AGENT_GUICHET,        'Agent de guichet'),
-        (SUPERVISEUR_CENTRE,   'Superviseur de centre'),
-        (SUPERVISEUR_NATIONAL, 'Superviseur national'),
-        (ADMIN_SYSTEME,        'Administrateur système'),
+        (ADMIN_CENTRAL, 'Administrateur central'),
+        (AGENT_CENTRE,  'Agent de centre'),
     ]
 
     id        = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -39,7 +35,7 @@ class Agent(AbstractBaseUser, PermissionsMixin):
     prenoms   = models.CharField(max_length=200)
     matricule = models.CharField(max_length=30, unique=True)
     telephone = models.CharField(max_length=20, blank=True)
-    role      = models.CharField(max_length=30, choices=ROLE_CHOICES, default=AGENT_GUICHET)
+    role      = models.CharField(max_length=30, choices=ROLE_CHOICES, default=AGENT_CENTRE)
     centre    = models.ForeignKey(
         'centres.Centre',
         on_delete=models.SET_NULL,
