@@ -68,6 +68,26 @@ class CentreViewSet(viewsets.ModelViewSet):
         serializer = RattachementVillageSerializer(rattachements, many=True)
         return response.Response(serializer.data)
 
+    @decorators.action(detail=False, methods=['get'], url_path='villages_libres')
+    def villages_libres(self, request):
+        """
+        Retourne les villages NON rattachés à un centre actif.
+        Un village est 'libre' si aucun RattachementVillage actif n'existe pour lui.
+        """
+        from territoire.models import Village
+        from territoire.serializers import VillageSerializer
+        today = timezone.now().date()
+
+        villages_occupes = RattachementVillage.objects.filter(
+            date_debut__lte=today,
+        ).filter(
+            models.Q(date_fin__isnull=True) | models.Q(date_fin__gt=today)
+        ).values_list('village_id', flat=True)
+
+        villages = Village.objects.exclude(id__in=villages_occupes).order_by('nom')
+        serializer = VillageSerializer(villages, many=True)
+        return response.Response({'results': serializer.data, 'count': villages.count()})
+
     @decorators.action(detail=True, methods=['get'])
     def agents(self, request, pk=None):
         from authentification.serializers import AgentSerializer
