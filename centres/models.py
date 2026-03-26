@@ -50,4 +50,4 @@ class RattachementVillage(models.Model):
     def est_courant(self):
         from django.utils import timezone
         today = timezone.now().date()
-        return self.date_fin is None or self.date_fin >= today
+        return self.date_fin is None or self.date_fin > today

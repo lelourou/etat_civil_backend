@@ -63,7 +63,7 @@ class CentreViewSet(viewsets.ModelViewSet):
         ).filter(
             date_debut__lte=today
         ).filter(
-            models.Q(date_fin__isnull=True) | models.Q(date_fin__gte=today)
+            models.Q(date_fin__isnull=True) | models.Q(date_fin__gt=today)
         ).select_related('village')
         serializer = RattachementVillageSerializer(rattachements, many=True)
         return response.Response(serializer.data)
