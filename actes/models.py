@@ -98,6 +98,16 @@ class ActeNaissance(models.Model):
     declarant_prenoms = models.CharField(max_length=200)
     declarant_lien    = models.CharField(max_length=50, blank=True)
     declarant_cin     = models.CharField(max_length=30, blank=True)
+    # ── Père ──────────────────────────────────────────────────────────
+    nom_pere         = models.CharField(max_length=200, blank=True)
+    prenoms_pere     = models.CharField(max_length=200, blank=True)
+    nationalite_pere = models.CharField(max_length=50,  blank=True, default='CI')
+    profession_pere  = models.CharField(max_length=200, blank=True)
+    # ── Mère ──────────────────────────────────────────────────────────
+    nom_mere         = models.CharField(max_length=200, blank=True)
+    prenoms_mere     = models.CharField(max_length=200, blank=True)
+    nationalite_mere = models.CharField(max_length=50,  blank=True, default='CI')
+    profession_mere  = models.CharField(max_length=200, blank=True)
 
     class Meta:
         db_table = 'actes_naissance'

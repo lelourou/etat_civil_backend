@@ -27,6 +27,17 @@ class IndividuViewSet(viewsets.ModelViewSet):
             return IndividuCreateSerializer
         return IndividuSerializer
 
+    def update(self, request, *args, **kwargs):
+        """Bloquer la modification d'un individu décédé."""
+        instance = self.get_object()
+        if instance.est_decede:
+            return response.Response(
+                {"detail": "Impossible de modifier un individu décédé. "
+                           "Son dossier est verrouillé suite à l'enregistrement de son acte de décès."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
     @decorators.action(detail=False, methods=['post'])
     def verifier_doublon(self, request):
         nom              = request.data.get('nom', '')

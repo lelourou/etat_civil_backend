@@ -68,10 +68,69 @@ class ActeCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         individu = data.get('individu')
         nature   = data.get('nature')
+
+        # R-DECES — Individu décédé ne peut plus avoir de nouveaux actes sauf décès
         if individu and individu.est_decede and nature != Acte.DECES:
             raise serializers.ValidationError(
                 "Impossible de créer un acte pour un individu décédé."
             )
+
+        if individu and nature:
+            # R-NAISSANCE — Un seul acte de naissance par individu (national + local)
+            if nature == Acte.NAISSANCE:
+                if Acte.objects.filter(individu=individu, nature=Acte.NAISSANCE).exists():
+                    raise serializers.ValidationError(
+                        "Un acte de naissance existe déjà pour cet individu "
+                        "dans la base nationale."
+                    )
+
+            # R-DECES — Un seul acte de décès par individu
+            if nature == Acte.DECES:
+                if Acte.objects.filter(individu=individu, nature=Acte.DECES).exists():
+                    raise serializers.ValidationError(
+                        "Un acte de décès existe déjà pour cet individu."
+                    )
+
+            # R-MARIAGE — Pas de remariage sans divorce préalable
+            if nature == Acte.MARIAGE:
+                dernier_mariage = (
+                    Acte.objects
+                    .filter(individu=individu, nature=Acte.MARIAGE)
+                    .order_by('-date_evenement')
+                    .first()
+                )
+                if dernier_mariage:
+                    a_divorce = dernier_mariage.mentions.filter(
+                        type_mention=MentionMarginale.DIVORCE
+                    ).exists()
+                    if not a_divorce:
+                        raise serializers.ValidationError(
+                            "Cet individu est déjà marié(e). Un acte de divorce doit "
+                            "être enregistré (mention marginale DIVORCE) avant "
+                            "tout nouveau mariage."
+                        )
+
+                # Vérifier aussi pour l'époux/épouse si fournis dans detail_mariage
+                detail = data.get('detail_mariage', {})
+                for role_field in ['epoux', 'epouse']:
+                    conjoint = detail.get(role_field) if isinstance(detail, dict) else getattr(detail, role_field, None)
+                    if conjoint and conjoint != individu:
+                        dernier = (
+                            Acte.objects
+                            .filter(individu=conjoint, nature=Acte.MARIAGE)
+                            .order_by('-date_evenement')
+                            .first()
+                        )
+                        if dernier:
+                            a_div = dernier.mentions.filter(
+                                type_mention=MentionMarginale.DIVORCE
+                            ).exists()
+                            if not a_div:
+                                raise serializers.ValidationError(
+                                    f"Le/la {role_field} est déjà marié(e). "
+                                    "Un divorce doit être enregistré avant ce mariage."
+                                )
+
         return data
 
     def create(self, validated_data):

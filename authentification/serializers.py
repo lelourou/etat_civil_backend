@@ -36,8 +36,21 @@ class CustomTokenObtainSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        token['nom_complet']  = user.nom_complet
-        token['role']         = user.role
-        token['centre_id']    = str(user.centre_id) if user.centre_id else None
-        token['centre_code']  = user.centre.code if user.centre else None
+        token['nom_complet'] = user.nom_complet
+        token['role']        = user.role
+        token['centre_id']   = str(user.centre_id) if user.centre_id else None
+        token['centre_nom']  = user.centre.nom    if user.centre    else None
+        token['centre_code'] = user.centre.code   if user.centre    else None
         return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        # Ajoute les infos agent dans la réponse login (en plus du token)
+        data['agent'] = {
+            'id':         str(self.user.id),
+            'nom_complet': self.user.nom_complet,
+            'role':        self.user.role,
+            'centre_id':   str(self.user.centre_id) if self.user.centre_id else None,
+            'centre_nom':  self.user.centre.nom     if self.user.centre    else None,
+        }
+        return data
