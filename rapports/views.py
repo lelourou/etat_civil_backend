@@ -112,7 +112,7 @@ class EvolutionMensuelleView(RapportsMixin, APIView):
             return Response({'detail': 'Accès non autorisé.'}, status=403)
 
         fa = self.get_filtre_actes(request.user)
-        depuis = date(timezone.now().year - 5, 1, 1)
+        depuis = date(timezone.now().year - 12, 1, 1)
 
         donnees = (
             Acte.objects.filter(date_evenement__gte=depuis, **fa)
@@ -281,10 +281,11 @@ class ActesParGenreView(RapportsMixin, APIView):
         )
 
         deces_par_sexe = (
-            Individu.objects.filter(est_decede=True, **fi)
-            .values('sexe')
+            Acte.objects.filter(nature='DECES', **fa)
+            .select_related('individu')
+            .values('individu__sexe')
             .annotate(count=Count('id'))
-            .order_by('sexe')
+            .order_by('individu__sexe')
         )
 
         return Response({
@@ -293,5 +294,8 @@ class ActesParGenreView(RapportsMixin, APIView):
                 {'sexe': d['individu__sexe'], 'count': d['count']}
                 for d in naissances_par_sexe
             ],
-            'deces_par_sexe':       list(deces_par_sexe),
+            'deces_par_sexe': [
+                {'sexe': d['individu__sexe'], 'count': d['count']}
+                for d in deces_par_sexe
+            ],
         })
