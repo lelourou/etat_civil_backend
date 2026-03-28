@@ -24,6 +24,7 @@ CMD ["sh", "-c", \
      "python manage.py migrate --noinput && \
       python manage.py collectstatic --noinput && \
       python manage.py init_demo && \
+      python manage.py seed_demo && \
       gunicorn etat_civil_api.wsgi:application \
         --bind 0.0.0.0:8000 \
         --workers 4 \
