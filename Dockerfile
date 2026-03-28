@@ -25,6 +25,7 @@ CMD ["sh", "-c", \
       python manage.py collectstatic --noinput && \
       python manage.py init_demo && \
       python manage.py seed_demo && \
+      python manage.py seed_extra && \
       gunicorn etat_civil_api.wsgi:application \
         --bind 0.0.0.0:8000 \
         --workers 4 \
