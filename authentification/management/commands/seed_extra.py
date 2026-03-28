@@ -122,6 +122,11 @@ class Command(BaseCommand):
         from actes.models import Acte
         from paiements.models import Paiement, DemandeCopie
 
+        # Corriger les paiements créés avec un mauvais statut
+        fixed = Paiement.objects.filter(statut='VALIDE').update(statut='CONFIRME')
+        if fixed:
+            self.stdout.write(f"  {fixed} paiements corrigés (VALIDE → CONFIRME).")
+
         if DemandeCopie.objects.count() > 10:
             self.stdout.write("  Demandes/paiements déjà présents — ignoré.")
             return
@@ -167,7 +172,7 @@ class Command(BaseCommand):
                     montant=random.choice(montants),
                     devise='FCFA',
                     moyen=random.choice(MOYENS_PAI),
-                    statut='VALIDE',
+                    statut='CONFIRME',
                     reference_externe=f"REF-{uuid.uuid4().hex[:10].upper()}",
                     date_paiement=timezone.make_aware(
                         datetime(d_dem.year, d_dem.month, d_dem.day, random.randint(8,17), 0)
