@@ -32,6 +32,10 @@ class AgentCreateSerializer(serializers.ModelSerializer):
         return agent
 
 
+class ResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(min_length=8, write_only=True)
+
+
 class CustomTokenObtainSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):

@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Agent
-from .serializers import AgentSerializer, AgentCreateSerializer, CustomTokenObtainSerializer
+from .serializers import AgentSerializer, AgentCreateSerializer, CustomTokenObtainSerializer, ResetPasswordSerializer
 
 
 class EstAdminCentral(permissions.BasePermission):
@@ -56,3 +56,22 @@ class AgentDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset           = Agent.objects.select_related('centre').all()
     serializer_class   = AgentSerializer
     permission_classes = [EstAdminCentral]
+
+
+class ResetPasswordView(APIView):
+    """Réinitialisation du mot de passe d'un agent par l'ADMIN_CENTRAL."""
+    permission_classes = [EstAdminCentral]
+
+    def post(self, request, pk):
+        try:
+            agent = Agent.objects.get(pk=pk)
+        except Agent.DoesNotExist:
+            return Response({'detail': 'Agent introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ResetPasswordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        agent.set_password(serializer.validated_data['new_password'])
+        agent.save(update_fields=['password'])
+        return Response({'detail': 'Mot de passe réinitialisé avec succès.'})

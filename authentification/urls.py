@@ -1,6 +1,6 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import LoginView, LogoutView, MeView, AgentListCreateView, AgentDetailView
+from .views import LoginView, LogoutView, MeView, AgentListCreateView, AgentDetailView, ResetPasswordView
 
 urlpatterns = [
     path('login/',          LoginView.as_view(),         name='auth-login'),
@@ -9,4 +9,5 @@ urlpatterns = [
     path('me/',             MeView.as_view(),              name='auth-me'),
     path('agents/',         AgentListCreateView.as_view(), name='agent-list'),
     path('agents/<uuid:pk>/', AgentDetailView.as_view(),  name='agent-detail'),
+    path('agents/<uuid:pk>/reset-password/', ResetPasswordView.as_view(), name='agent-reset-password'),
 ]
